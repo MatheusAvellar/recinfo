@@ -1,0 +1,115 @@
+:root {
+  --accent-light: #a8f0e6;
+  --accent: #25c7b1;
+  --accent-strong: #89ebde;
+  --accent-dark: #0b8e7c;
+  --background: #f9fafb;
+  --footer: #f1f1f1;
+  --foreground: #161e2e;
+}
+body {
+  margin: 0;
+  font-family: Inter, Roboto, Arial, sans-serif;
+  font-weight: 400;
+  background-color: #f9fafb;
+}
+header,main,footer > section {
+  padding: 0 1em;
+  margin: 1em auto;
+  max-width: 768px;
+}
+h1,h2,h3,h4,h5,h6 {
+  font-weight: 800;
+  color: var(--foreground);
+}
+h1 {
+  margin: 0;
+}
+h2 {
+  margin: 0rem 0 0.5rem;
+  line-height: 1.8;
+}
+.overhead {
+  text-transform: uppercase;
+  margin: 0;
+  letter-spacing: .125em;
+  font-weight: 700;
+  color: var(--accent);
+}
+strong {
+  font-weight: 500;
+}
+a[href] {
+  color: var(--accent-dark);
+  font-weight: 500;
+  text-decoration: none;
+}
+a[href]:hover {
+  text-decoration: underline;
+}
+hr {
+  border: none;
+  text-align: center;
+  margin: 3em 0;
+}
+hr:after {
+  content: "×××";
+  letter-spacing: 2em;
+  color: #cacaca;
+}
+
+#title-a, #title-b {
+  padding: .25em .5em;
+  border-radius: 0.2em;
+  cursor: pointer;
+}
+#diff-output::before,
+#diff-output::after {
+  content: "…";
+}
+.a, .b {
+  max-width: 20ch;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: bottom;
+  white-space: nowrap;
+  word-break: break-word;
+}
+.a::before, .b::before { content: "«"; }
+.a::after, .b::after { content: "»"; }
+
+#title-a, .a { background-color: #b6fbb9; }
+#title-b, .b { background-color: #c2ecff; }
+.equal { background-color: #ffffb6; }
+
+[data-focus="title-b"] .a,
+[data-focus="title-a"] .b { display: none; }
+
+[data-focus="title-a"] .a,
+[data-focus="title-b"] .b {
+  display: inline;
+  white-space: normal;
+}
+[data-focus="title-a"] .a::before,
+[data-focus="title-a"] .a::after,
+[data-focus="title-b"] .b::before,
+[data-focus="title-b"] .b::after {
+  content: "";
+}
+
+#article-list {
+  padding: .5rem 1rem;
+}
+
+#wikilinks-wrapper::before {
+  content: "Wikilinks:";
+  text-transform: uppercase;
+  margin: 0;
+  letter-spacing: .125em;
+  font-weight: 700;
+  color: #848d92;
+}
+#wikilinks {
+  margin: 0 0 1rem;
+}

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <title>Comparison of Text Reuse in Wikipedia</title>
+  <meta name="author" content="Matheus Avellar">
+  <!-- <meta name="description" content=""> -->
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link rel="stylesheet" type="text/css" href="./style.css">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <script src="diff_match_patch.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Comparison of Text Reuse in Wikipedia</h1>
+  </header>
+  <main>
+    <p>Select an article pairing:</p>
+    <select id="article-list"></select>
+    <hr>
+    <section id="wikilinks-wrapper">
+      <ul id="wikilinks"></ul>
+    </section>
+    <p class="overhead">Comparing</p>
+    <h2>
+      <span id="title-b" tabindex=0>?</span> <-> <span id="title-a" tabindex=0>?</span>
+    </h2>
+    <output id="diff-output"></output>
+    <script>
+let article_ids = [50162450,50109173];
+let article_boundaries = [
+  ["is a shrub belonging to t","d produces yellow flowers"],
+  ["is a shrub belonging to t","d produces yellow flowers"]
+];
+const article_texts = [];
+
+const wikilinks = document.getElementById("wikilinks");
+const out = document.getElementById("diff-output");
+const titles = {
+  "title-a": document.getElementById("title-a"),
+  "title-b": document.getElementById("title-b")
+};
+[titles["title-a"], titles["title-b"]].forEach(e => {
+  e.addEventListener("focus", function(ev) {
+    out.dataset.focus = e.id;
+  });
+  e.addEventListener("blur", function(ev) {
+    out.removeAttribute("data-focus");
+  });
+});
+
+function clearPreviousQuery() {
+  titles["title-a"].textContent = "?";
+  titles["title-b"].textContent = "?";
+  while(out.firstChild)
+    out.firstChild.remove();
+}
+
+function calculateDiff(arr) {
+  const dmp = new diff_match_patch();
+  let diff = dmp.diff_main(...arr);
+  dmp.diff_cleanupSemantic(diff);
+
+  for(let d of diff) {
+    const span = document.createElement("span");
+    span.textContent = d[1];
+    switch(d[0]) {
+      case 0:  span.className = "equal"; break;
+      default: span.className = d[0] > 0 ? "a" : "b";
+    }
+    out.appendChild(span);
+  }
+}
+
+function getTitles() {
+  getTitle(article_ids[0], "title-a");
+  getTitle(article_ids[1], "title-b");
+}
+
+function getArticles() {
+  article_texts.length = 0;
+  getArticle(article_ids[0], 0);
+  getArticle(article_ids[1], 1);
+}
+
+const cache = { title: {}, body: {} };
+function getTitle(page_id, element_id) {
+  if(cache.title[page_id])
+    return updateTitle(cache.title[page_id], element_id);
+
+  getWiki(page_id,"displaytitle", element_id);
+}
+function getArticle(page_id, element_id) {
+  if(cache.body[page_id])
+    return processJSON(cache.body[page_id], element_id);
+
+  getWiki(page_id,"text%7Cdisplaytitle", element_id);
+}
+function getWiki(page_id, props, id) {
+  const BASE_URL = "https://en.wikipedia.org/w/api.php?action=parse&format=json&redirects=1&disablelimitreport=1&origin=*&disableeditsection=1&disabletoc=1&utf8=1&pageid=";
+  const request = new XMLHttpRequest();
+  request.open("GET", `${BASE_URL}&prop=${props}&pageid=${page_id}`, true);
+  request.onload = function() {
+    if(request.status >= 200 && request.status < 400) {
+      const obj = JSON.parse(request.responseText);
+      if(typeof id == "string") {
+        cache.title[page_id] = obj;
+        updateTitle(obj, id);
+      } else {
+        cache.body[page_id] = obj;
+        processJSON(obj, id);
+      }
+    }
+  };
+  request.send();
+}
+function updateTitle(data, element_id) {
+  const tit = data.parse.title;
+  titles[element_id].textContent = tit;
+
+  const li = document.createElement("li");
+  const a = document.createElement("a");
+  a.href = `https://en.wikipedia.org/wiki/${tit}`;
+  a.textContent = `en.wikipedia.org/wiki/${tit}`;
+  li.appendChild(a);
+  wikilinks.appendChild(li);
+}
+function processJSON(data, id) {
+  const article_text = data.parse.text["*"];
+  let processed = lineBreaksToSpaces(parseHTML(article_text));
+
+  const boundary1 = lineBreaksToSpaces(article_boundaries[id][0]);
+  if(processed.indexOf(boundary1) >= 0) {
+    const _tmp1 = processed.split(boundary1);
+    _tmp1.shift();
+    processed = `${boundary1}${_tmp1.join(boundary1)}`;
+  }
+
+  const boundary2 = lineBreaksToSpaces(article_boundaries[id][1]);
+  if(processed.indexOf(boundary2) >= 0) {
+    const _tmp2 = processed.split(boundary2);
+    _tmp2.pop();
+    processed = `${_tmp2.join(boundary2)}${boundary2}`;
+  }
+
+  article_texts[id] = processed;
+
+  if(article_texts[0] && article_texts[1])
+    calculateDiff(article_texts);
+}
+function lineBreaksToSpaces(str) {
+  return str.replace(/\s+/g," ");
+}
+function parseHTML(str) {
+  const parser = new DOMParser();
+  const preprocess = str.replace(/\[[0-9]+\]/g,"")
+    .split("<h2><span class=\"mw-headline\" id=\"References\">References</span></h2>")[0];
+  const parsed = parser.parseFromString(preprocess, "text/html");
+  // Remove all <style> or <script> tags
+  [...parsed.body.querySelectorAll("style,script")].forEach(e => e.remove());
+  return parsed.body.innerText
+    .replace(/\[[0-9]+\]/g,"");
+}
+
+const article_list = document.getElementById("article-list");
+const json_req = new XMLHttpRequest();
+json_req.open("GET", "./final.json", true);
+json_req.onload = function() {
+  if(this.status >= 200 && this.status < 400) {
+    const data = JSON.parse(this.response).data;
+    data.forEach(e => {
+      const opt = document.createElement("option");
+      opt.textContent = e[0];
+      opt.value = JSON.stringify(e[1]);
+      article_list.appendChild(opt);
+    });
+    article_list.onchange = changeArticle;
+    changeArticle();
+  }
+};
+json_req.send();
+
+function changeArticle() {
+  clearPreviousQuery();
+
+  const data = JSON.parse(article_list.value);
+  article_ids = [data[0], data[1]];
+  article_boundaries = [data[2], data[3]]
+  while(wikilinks.firstChild)
+    wikilinks.firstChild.remove();
+  getTitles();
+  getArticles();
+}
+    </script>
+  </main>
+  <footer></footer>
+  <!--[Ref] csswizardry.com/2020/05/the-fastest-google-fonts-->
+  <link rel="preload" as="style"
+        href="https://fonts.googleapis.com/css2?family=Roboto+Mono&family=Inter:wght@400;500;700;800&display=swap">
+  <link rel="stylesheet" media="print" onload="this.media='all'"
+        href="https://fonts.googleapis.com/css2?family=Roboto+Mono&family=Inter:wght@400;500;700;800&display=swap">
+</body>
+</html>
